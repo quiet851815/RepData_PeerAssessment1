@@ -1,25 +1,136 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Activity Monitoring
+===========================
+
+### Loading the data and preparing for analysis
+I load and run a summary of the activity data. 
+
+```{r load_data, echo=TRUE}
+
+#Load libraries and data
+library(dplyr)
+data <- read.csv("activity.csv")
+
+#Instead of processing the data, running a summnary
+summary(data)
+
+```
+
+### What is mean total number of steps taken per day?
+Ignoring missing values in this part of the analysis
+
+```{r mean_total_steps, echo =TRUE}
+
+#Calculate the total number of steps taken per day
+steps_per_day <- data%>% group_by(date) %>%
+  summarise(steps = sum(steps, na.rm = TRUE))
+
+#Make a histogram of the total number of steps taken each day
+Steps <- steps_per_day$steps
+hist(Steps)
+
+#Calculate and report the mean and median of the total number of steps taken per day
+mean_steps <- mean(Steps, na.rm=TRUE)
+median_steps <- median(Steps, na.rm=TRUE)
+
+```
+The mean and median of the total number of steps taken per day are `r mean_steps` and `r median_steps`, respectively.
 
 
-## Loading and preprocessing the data
+
+### What is the average daily activity pattern?
+
+```{r avg_daily_pattern, echo=TRUE}
+
+#Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+steps_per_interval <- data%>% group_by(interval) %>%
+  summarise(mean_steps = mean(steps, na.rm=TRUE))
+
+Interval <- steps_per_interval$interval
+Steps <- steps_per_interval$mean_steps
+
+plot(Interval, Steps,
+     main ="5-minute intervals and the average number of steps taken",
+     type="l",
+     col ="blue")
+
+```
+
+### Imputing missing values
+Accounting for the presence of missing days, which may introduce bias into some calculations or summaries of the data.
+
+```{r missing_values, echo=TRUE}
+
+#Calculate and report the total number of missing values in the dataset
+NAs <- data %>% summarise(NAs = sum(is.na(steps)))
+
+#Create a new dataset with the missing data filled in with the mean for that day 5-minute interval
+data_filled <- data %>% left_join(steps_per_interval, by = "interval") %>%
+  mutate(adj_steps = ifelse(is.na(steps), mean_steps, steps))
+
+#Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Reusing code from above but changing data to data_filled and steps to adjusted steps.
+
+#Calculate the total number of steps taken per day
+adj_steps_per_day <- data_filled%>% group_by(date) %>%
+  summarise(adj_steps = sum(adj_steps, na.rm = TRUE))
+
+#Make a histogram of the total number of steps taken each day
+Adjusted_Steps <- adj_steps_per_day$adj_steps
+hist(Adjusted_Steps)
+
+#Calculate and report the mean and median of the total number of steps taken per day
+adj_mean_steps <- mean(Adjusted_Steps, na.rm=TRUE)
+adj_median_steps <- median(Adjusted_Steps, na.rm=TRUE)
+
+# Calculate the differences between the adjusted mean and median and the originals
+mean_diff <- adj_mean_steps - mean_steps
+median_diff <- adj_median_steps - median_steps
+
+```
+
+There are `r NAs` missing values in the dataset. Imputing the missing values increase the mean and median by `r mean_diff` and `r median_diff`, respectively. You can compare the two histograms and see that the adjusted data cluster more in the center of the histogram.
 
 
 
-## What is mean total number of steps taken per day?
+### Are there differences in activity patterns between weekdays and weekends?
+Using the dataset with the filled-in missing values for this part.
+
+```{r weekends, echo=TRUE}
+#Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+data_filled <- data_filled%>% mutate(
+  day_type = ifelse(weekdays(as.Date(date), abbreviate = FALSE) == "Saturday" | 
+                      weekdays(as.Date(date), abbreviate = FALSE) == "Sunday", "Weekend", "Weekday")
+)
+
+#Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data. Copying code from above but changing to adjusted/filled.
+
+#Weekday
+filled_steps_per_interval_weekday <- data_filled%>% filter(day_type == "Weekday") %>%
+  group_by(interval) %>%
+  summarise(filled_mean_steps = mean(adj_steps, na.rm=TRUE))
+
+Filled_Interval_Weekday <- filled_steps_per_interval_weekday$interval
+Filled_Steps_Weekday <- filled_steps_per_interval_weekday$filled_mean_steps
+
+#Weekend
+filled_steps_per_interval_weekend <- data_filled%>% filter(day_type == "Weekend") %>%
+  group_by(interval) %>%
+  summarise(filled_mean_steps = mean(adj_steps, na.rm=TRUE))
+
+Filled_Interval_Weekend <- filled_steps_per_interval_weekend$interval
+Filled_Steps_Weekend <- filled_steps_per_interval_weekend$filled_mean_steps
+
+#Plot
+par(mfrow=c(2,1))
+plot(Filled_Interval_Weekday, Filled_Steps_Weekday,
+     main ="weekday",
+     type="l",
+     col ="blue")
+plot(Filled_Interval_Weekend, Filled_Steps_Weekend,
+     main ="weekend",
+     type="l",
+     col ="blue")
 
 
 
-## What is the average daily activity pattern?
+```
 
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
